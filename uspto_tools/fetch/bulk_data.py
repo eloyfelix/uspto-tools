@@ -9,6 +9,9 @@ import zipfile
 
 from bs4 import BeautifulSoup
 
+from uspto_tools.parse import aps
+from uspto_tools.parse.patent import USPatent
+
 
 def get_full_text_links(session, text_format=None,
                         start_year=None, end_year=None):
@@ -79,24 +82,35 @@ def get_zip_links(session, url, filter_pattern=None):
 
 
 def get_patents_from_zip(zip_file):
-    """
+    """ Unzip and parse patents in USPTO bulk-data zip-file.
 
     Parameters
     ----------
-    zip_file
+    zip_file : str, file-like
+        File containing USPTO full-text data.
 
     Returns
     -------
-
+    list[uspto_tools.parse.patent.USPatent]
+        Parsed patents.
     """
     zip_file = zipfile.ZipFile(zip_file)
     unzipped = {name: zip_file.read(name) for name in zip_file.namelist()}
 
     patents = list()
     for name, file in unzipped.items():
+        if isinstance(file, bytes):
+            file = file.decode()
         if name.startswith('pftaps'):
-
+            splitter = aps.chunk_aps_file
+            parser = aps.parse_aps_into_namespaces
+            constructor = USPatent.from_aps_namespaces
         else:
             raise NotImplementedError(name)
 
-    pass
+        for chunk in splitter(file):
+            parsed = parser(chunk)
+            patent = constructor(parsed)
+            patents.append(patent)
+
+    return patents
