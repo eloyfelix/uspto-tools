@@ -36,7 +36,8 @@ class NameSpace:
         """
         paragraph_tags = [tag for tag in self.data
                           if re.match(r'PA.', tag.key)]
-        tag_data = [tag.data for tag in paragraph_tags]
+        tag_data = [tag.data if not tag.data.isupper() else tag.data + ' '
+                    for tag in paragraph_tags]
         return '\n'.join(tag_data)
 
     def get_tags_by_key(self, key):
@@ -72,7 +73,7 @@ def parse_aps_into_namespaces(text):
     list[NameSpace]
         Parsed
     """
-    lines = text.split('\n')
+    lines = text.splitlines()
     name_spaces = list()
 
     current_namespace = None

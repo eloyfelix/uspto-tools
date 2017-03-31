@@ -151,7 +151,7 @@ class USPatent:
         self.us_references = list()
         self.inventors = list()
         self.claims = list()
-        self.design_claims = list()
+        self.design_claims = None
 
         self.abstract = None
         self.brief_summary = None
