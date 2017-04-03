@@ -103,14 +103,12 @@ def get_patents_from_zip(zip_file):
             file = file.decode()
         if name.startswith('pftaps'):
             splitter = aps.chunk_aps_file
-            parser = aps.parse_aps_into_namespaces
-            constructor = USPatent.from_aps_namespaces
+            parser = aps.parse_aps_chunk
         else:
             raise NotImplementedError(name)
 
         for chunk in splitter(file):
-            parsed = parser(chunk)
-            patent = constructor(parsed)
+            patent = parser(chunk)
             patents.append(patent)
 
     return patents
