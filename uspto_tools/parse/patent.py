@@ -5,18 +5,22 @@ Copyright (c) 2017 clicumu
 Licensed under MIT license as described in LICENSE.txt
 """
 
+
 class USPatent:
 
     """ A single patent instance. """
 
     def __init__(self, **kwargs):
         self.patent_number = None
+        self.date = None
+        self.country = None
         self.series_code = None
         self.kind = None
         self.application_number = None
         self.application_type = None
-        self.art_unit = None
+        self.application_country = None
         self.application_date = None
+        self.art_unit = None
         self.title = None
         self.primary_examiner = None
 
@@ -36,6 +40,19 @@ class USPatent:
         self.patent_classification = None
 
         _set_attributes_from_kwargs(self, kwargs)
+
+    @property
+    def document_id(self):
+        document_id = ' '.join(filter(None, [self.country,
+                                             self.patent_number,
+                                             self.kind]))
+        if self.date is not None:
+            document_id += '-{}'.format(self.date)
+
+        return document_id
+
+    def __repr__(self):
+        return '<{}: {}>'.format(self.__class__.__name__, self.document_id)
 
 
 class Inventor:
@@ -80,6 +97,7 @@ class USReference:
         self.patent_number = None
         self.issue_date = None
         self.patentee_name = None
+        self.country = None
 
         _set_attributes_from_kwargs(self, kwargs)
 

@@ -10,7 +10,7 @@ from .patent import USPatent, Inventor, PatentClassification, USReference
 
 
 def chunk_sgml_file(sgml, chunk_on='PATDOC'):
-    """ Iterate over patents in APS-file.
+    """ Iterate over patents in SGML-file.
 
     Parameters
     ----------
