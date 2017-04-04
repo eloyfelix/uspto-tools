@@ -4,14 +4,15 @@ inventor, patent-reference and classification.
 Copyright (c) 2017 clicumu
 Licensed under MIT license as described in LICENSE.txt
 """
+import re
 
 
 class USPatent:
 
     """ A single patent instance. """
 
-    def __init__(self, **kwargs):
-        self.patent_number = None
+    def __init__(self, clean_id=True, **kwargs):
+        self._patent_number = None
         self.date = None
         self.country = None
         self.series_code = None
@@ -39,7 +40,19 @@ class USPatent:
 
         self.patent_classification = None
 
+        self.clean_id = clean_id
+
         _set_attributes_from_kwargs(self, kwargs)
+
+    @property
+    def patent_number(self):
+        return self._patent_number
+
+    @patent_number.setter
+    def patent_number(self, patent_number):
+        if self.clean_id:
+            patent_number = re.sub(r'[^a-zA-Z\d]', '', patent_number)
+        self._patent_number = patent_number
 
     @property
     def document_id(self):
@@ -102,7 +115,7 @@ class USReference:
         _set_attributes_from_kwargs(self, kwargs)
 
     def __repr__(self):
-        base_str = '{}(patent_number="{}", issue_data="{}", patentee_name="{}")'
+        base_str = '{}(patent_number="{}", issue_date="{}", patentee_name="{}")'
         return base_str.format(self.__class__.__name__, self.patent_number,
                                self.issue_date, self.patentee_name)
 
