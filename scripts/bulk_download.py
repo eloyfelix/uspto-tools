@@ -1,12 +1,19 @@
 import argparse
+import sys
+import os
 import datetime
 import traceback
 import sys
 import io
 import zipfile
 import multiprocessing
+import time
 
 import requests
+
+if __name__ == '__main__':
+    sys.path.insert(0, os.path.abspath('..'))
+
 from uspto_tools.fetch.bulk_data import get_full_text_links, get_zip_links, \
     get_patents_from_zip
 
@@ -23,9 +30,23 @@ class Message:
         self.name = name
         self.content = content
         self.is_failure = False
+        self.msg = None
 
 
 def log_error(output_path, name, exc_class, tb_str):
+    """ Log error to file.
+
+    Parameters
+    ----------
+    output_path : str
+        Path to results file.
+    name : str
+        Original file name.
+    exc_class : type
+        Exception class.
+    tb_str : str
+        Traceback formatted as string.
+    """
     path = output_path.rsplit('.', 1)[0]
     path += '_error.txt'
 
@@ -36,6 +57,20 @@ def log_error(output_path, name, exc_class, tb_str):
 
 
 def listener(output_path, queue):
+    """ Listener function which polls `queue` for `Message`-instances.
+
+    If success, save patents to simple zip-archive as text format.
+
+    Parameters
+    ----------
+    output_path : str
+        Output file.
+    queue : multiprocessing.Queue
+        Message queue.
+    """
+
+    start = datetime.datetime.now()
+    print('Start listener: {}'.format(start))
 
     while True:
         try:
@@ -44,7 +79,8 @@ def listener(output_path, queue):
             raise
 
         if content == STOP_TOKEN:
-            print('Finished')
+            now = datetime.datetime.now()
+            print('Finished: {} (time elapsed {})'.format(now, now - start))
             break
 
         if not isinstance(content, Message):
@@ -58,6 +94,8 @@ def listener(output_path, queue):
             continue
         else:
             patents = content.content
+            if not patents:
+                continue
 
         attrs = ('patent_number', 'series_code', 'application_number',
                  'application_type', 'application_date', 'title', 'abstract',
@@ -77,8 +115,12 @@ def listener(output_path, queue):
             lines.append('')
 
         text = '\r\n'.join(lines)
-
-        print('Writes {} to archive.'.format(name))
+        now = datetime.datetime.now()
+        base_msg = 'Writes {} to archive (time elapsed: {})'.format(name,
+                                                                    now - start)
+        if content.msg is not None:
+            base_msg += ' {}'.format(content.msg)
+        print(base_msg)
         with zipfile.ZipFile(output_path, 'a',
                              compression=zipfile.ZIP_DEFLATED,
                              allowZip64=True) as zf:
@@ -101,8 +143,10 @@ def fetch_and_parse(zip_url, args, queue):
         session = session_from_args(args)
         response = session.get(zip_url)
         zip_io = io.BytesIO(response.content)
-        patents = get_patents_from_zip(zip_io)
+        patents, n_fails = get_patents_from_zip(zip_io)
         result = Message(zip_url, patents)
+        if n_fails:
+            result.msg = '{} parsing failures'.format(n_fails)
         queue.put(result)
     except Exception as e:
         _, exc_class, tb = sys.exc_info()
@@ -112,6 +156,12 @@ def fetch_and_parse(zip_url, args, queue):
 
 
 def make_parser():
+    """ Configure argument-parser.
+
+    Returns
+    -------
+    argparse.ArgumentParser
+    """
 
     parser = argparse.ArgumentParser('USPTO Bulk download')
     parser.add_argument('--text_format', choices=('aps', 'xml', 'sgml'),
@@ -166,11 +216,13 @@ if __name__ == '__main__':
     out = args.output
     output_path = '{}.zip'.format(out) if not out.endswith('.zip') else out
     session = session_from_args(args)
+    print('Get year links.')
     links = get_full_text_links(session, args.text_format, args.start_year,
                                 args.end_year)
 
     zip_links = list()
     for year_url in links:
+        print('Get zip-file URLS: {}'.format(year_url))
         if args.text_format == 'aps':
             new_links = get_zip_links(session, year_url, 'pftaps.*')
         elif args.text_format is not None:
@@ -187,6 +239,7 @@ if __name__ == '__main__':
     pool.apply_async(listener, (output_path, queue))
 
     zip_links = zip_links
+    print('Start fetching.')
     if args.n_jobs == -1:
         results = [fetch_and_parse(url, args, queue) for url in zip_links]
     else:
