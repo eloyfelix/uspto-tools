@@ -9,6 +9,7 @@ import re
 import itertools
 from uspto_tools.parse.patent import PatentClassification, USPatent,\
     USReference, Inventor
+from uspto_tools.parse.exceptions import ParseError
 
 
 class Tag:
@@ -100,6 +101,8 @@ def parse_aps_into_namespaces(text):
             if not tag.strip():
                 previous_tag.data += data
             else:
+                if current_namespace is None:
+                    raise ParseError('malformed APS')
                 new_tag = Tag(tag, data)
                 current_namespace.add_tag(new_tag)
                 previous_tag = new_tag
