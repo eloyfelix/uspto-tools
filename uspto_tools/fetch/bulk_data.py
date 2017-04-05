@@ -6,11 +6,12 @@ Licensed under MIT license as described in LICENSE.txt
 """
 import re
 import zipfile
+import logging
 
 from bs4 import BeautifulSoup
 
-from uspto_tools.parse import aps
-from uspto_tools.parse.patent import USPatent
+from uspto_tools import parse
+from uspto_tools.parse.exceptions import ParseError
 
 
 def get_full_text_links(session, text_format=None,
@@ -93,22 +94,37 @@ def get_patents_from_zip(zip_file):
     -------
     list[uspto_tools.parse.patent.USPatent]
         Parsed patents.
+    int
+        Number of parse-failures.
     """
     zip_file = zipfile.ZipFile(zip_file)
     unzipped = {name: zip_file.read(name) for name in zip_file.namelist()}
 
     patents = list()
+    n_failures = 0
     for name, file in unzipped.items():
         if isinstance(file, bytes):
             file = file.decode()
+
         if name.startswith('pftaps'):
-            splitter = aps.chunk_aps_file
-            parser = aps.parse_aps_chunk
+            splitter = parse.aps.chunk_aps_file
+            parser = parse.aps.parse_aps_chunk
+        elif name.startswith('pg'):
+            splitter = parse.sgml.chunk_sgml_file
+            parser = parse.sgml.parse_sgml_chunk
+        elif name.startswith('ipg'):
+            splitter = parse.xml.chunk_xml_file
+            parser = parse.xml.parse_xml_chunk
         else:
-            raise NotImplementedError(name)
+            logging.info('Ignoring: {}'.format(name))
+            continue
 
         for chunk in splitter(file):
-            patent = parser(chunk)
+            try:
+                patent = parser(chunk)
+            except ParseError:
+                n_failures += 1
+                continue
             patents.append(patent)
 
-    return patents
+    return patents, n_failures
