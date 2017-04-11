@@ -1,7 +1,4 @@
 """  Module for fetching data from http://patft.uspto.gov.
-
-Copyright (c) 2017 clicumu
-Licensed under MIT license as described in LICENSE.txt
 """
 import re
 

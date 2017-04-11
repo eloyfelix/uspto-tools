@@ -1,8 +1,5 @@
 """ This module contains chunker and parser for USPTO XML v4+
 full-text used for patents granted 2005-2017.
-
-Copyright (c) 2017 clicumu
-Licensed under MIT license as described in LICENSE.txt
 """
 from bs4 import BeautifulSoup
 

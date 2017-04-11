@@ -1,3 +1,6 @@
+""" This module contain wrappers of `requests.Session` which automatically
+fetches proxies.
+"""
 import logging
 import requests
 from requests.exceptions import ProxyError

@@ -1,8 +1,5 @@
 """ This module containt simple wrapper classes for a US-patent,
 inventor, patent-reference and classification.
-
-Copyright (c) 2017 clicumu
-Licensed under MIT license as described in LICENSE.txt
 """
 import re
 

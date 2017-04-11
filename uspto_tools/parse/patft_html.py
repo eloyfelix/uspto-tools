@@ -1,8 +1,4 @@
-""" Module to parse pieces of patents given HTML.
-
-Copyright (c) 2017 clicumu
-Licensed under MIT license as described in LICENSE.txt
-"""
+""" Module to parse pieces of patents given HTML."""
 import re
 import collections
 

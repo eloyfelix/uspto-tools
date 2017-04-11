@@ -1,8 +1,5 @@
 """ This module contain utility functions to fetch data from
 https://bulkdata.uspto.gov/
-
-Copyright (c) 2017 clicumu
-Licensed under MIT license as described in LICENSE.txt
 """
 import re
 import zipfile

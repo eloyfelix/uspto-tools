@@ -1,8 +1,5 @@
 """ This module contains chunker and parser for USPTO APS
 full-text used for patents granted 1976-2001.
-
-Copyright (c) 2017 clicumu
-Licensed under MIT license as described in LICENSE.txt
 """
 
 import re

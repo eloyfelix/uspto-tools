@@ -1,8 +1,5 @@
 """ This module contains chunker and parser for USPTO SGML/XML v2.5
 full-text used for patents granted 2002-2004.
-
-Copyright (c) 2017 clicumu
-Licensed under MIT license as described in LICENSE.txt
 """
 from bs4 import BeautifulSoup
 

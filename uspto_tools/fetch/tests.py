@@ -1,9 +1,3 @@
-""" Unit-test suite.
-
-Copyright (c) 2017 clicumu
-Licensed under MIT license as described in LICENSE.txt
-"""
-
 import collections
 import unittest
 
