@@ -115,14 +115,14 @@ def _parse_inventors(soup, version):
     soup : bs4.BeautifulSoup
         Patent soup.
     version : str
-        Version string on format "v4.x"
+        Version string on format "v4x"
 
     Returns
     -------
     list[Inventor]
     """
     if soup['country'] == 'US':
-        if version < 'v4.3':
+        if version < 'v43':
             list_name = 'applicants'
             tag_name = 'applicant'
         else:
@@ -223,13 +223,13 @@ def _parse_us_references(soup, version):
     soup : bs4.BeautifulSoup
         Patent soup.
     version : str
-        Version string on format "v4.x"
+        Version string on format "v4x"
 
     Returns
     -------
     list[USReference]
     """
-    if version < 'v4.3':
+    if version < 'v43':
         main_tag = 'references-cited'
         ref_tag = 'citation'
     else:
