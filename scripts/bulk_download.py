@@ -1,5 +1,16 @@
+""" USPTO Bulk download
+
+Script to bulk download patents full-text from USPTO bulk-data service.
+
+Patents are downloaded from https://bulkdata.uspto.gov/, where first all
+pages containing link to files are identified. Then full-text data is
+downloaded and parsed week-wise in parallel (or serially for debugging
+purposes).
+
+A subset of patent attributes are parsed and written to simple weekly
+text which are added to zip-archive.
+"""
 import argparse
-import sys
 import os
 import datetime
 import traceback
@@ -7,7 +18,6 @@ import sys
 import io
 import zipfile
 import multiprocessing
-import time
 
 import requests
 
@@ -89,30 +99,32 @@ def listener(output_path, queue):
 
         zip_url = content.name
         name = zip_url.rsplit('/', 1)[1].rsplit('.', 1)[0] + '.txt'
+        listener_error_path = output_path.rsplit('.', 1)[0] + '_listener.txt'
+
         if content.is_failure:
             log_error(output_path, name, *content.content)
             continue
         else:
             patents = content.content
             if not patents:
+                print('{}: No patents.'.format(name))
                 continue
 
         attrs = ('patent_number', 'series_code', 'application_number',
                  'application_type', 'application_date', 'title', 'abstract',
                  'brief_summary', 'description', 'design_claims')
         lines = list()
-        for patent in patents:
-            lines.append('PATENT')
-            for attr in attrs:
-                line = attr.upper().replace('_', ' ') + ': '
-                line += '{}'.format(getattr(patent, attr))
-                lines.append(line)
 
-            claims = getattr(patent, 'claims')
-            line = 'CLAIMS: '
-            line += ' '.join(claims) if claims else 'None'
-            lines.append(line)
-            lines.append('')
+        for patent in patents:
+            try:
+                new_lines = format_patent_as_lines(attrs, patent)
+                lines.extend(new_lines)
+            except Exception as e:
+                _, exc_class, tb = sys.exc_info()
+                msg = 'Failed parse: {}'.format(patent.patent_number)
+                log_error(listener_error_path, msg,
+                          exc_class, traceback.format_tb(tb))
+                continue
 
         text = '\r\n'.join(lines)
         now = datetime.datetime.now()
@@ -121,10 +133,52 @@ def listener(output_path, queue):
         if content.msg is not None:
             base_msg += ' {}'.format(content.msg)
         print(base_msg)
-        with zipfile.ZipFile(output_path, 'a',
-                             compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
-            zf.writestr(name, text)
+
+        try:
+            with zipfile.ZipFile(output_path, 'a',
+                                 compression=zipfile.ZIP_DEFLATED,
+                                 allowZip64=True) as zf:
+                zf.writestr(name, text)
+        except Exception as e:
+            _, exc_class, tb = sys.exc_info()
+            msg = 'Failed write: {}'.format(name)
+            log_error(listener_error_path, msg,
+                      exc_class, traceback.format_tb(tb))
+            continue
+
+
+def format_patent_as_lines(attrs, patent):
+    """ Format patent as compression friendly text-lines.
+
+    Parameters
+    ----------
+    attrs : list[str]
+        Attributes to save.
+    patent : uspto_tools.parse.patent.USPatent
+        Patent to parse.
+
+    Returns
+    -------
+    list[str]
+    """
+    lines = list()
+    lines.append('PATENT')
+    for attr in attrs:
+        line = attr.upper().replace('_', ' ') + ': '
+        line += '{}'.format(getattr(patent, attr))
+        lines.append(line)
+
+    claims = getattr(patent, 'claims')
+    line = 'CLAIMS: '
+    line += ' '.join(claims) if claims else 'None'
+    lines.append(line)
+
+    refs = getattr(patent, 'us_references')
+    line = 'REFERENCES: '
+    line += ';'.join([ref.patent_number for ref in refs]) if refs else 'None'
+    lines.append(line)
+    lines.append('')
+    return lines
 
 
 def fetch_and_parse(zip_url, args, queue):
@@ -163,7 +217,7 @@ def make_parser():
     argparse.ArgumentParser
     """
 
-    parser = argparse.ArgumentParser('USPTO Bulk download')
+    parser = argparse.ArgumentParser(__doc__)
     parser.add_argument('--text_format', choices=('aps', 'xml', 'sgml'),
                         help='Only fetch single format')
     parser.add_argument('--start_year', type=int, default=1976,
