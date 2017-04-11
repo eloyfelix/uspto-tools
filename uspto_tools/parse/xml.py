@@ -75,7 +75,7 @@ def parse_xml_chunk(chunk):
     parsed.update(_parse_app_ref(patent_soup))
     parsed['us_references'] = _parse_us_references(patent_soup, version)
     parsed['series_code'] = safe_text(patent_soup.find('us-application-series-code'))
-    parsed['inventors'] = _parse_inventors(patent_soup)
+    parsed['inventors'] = _parse_inventors(patent_soup, version)
     parsed['primary_examiner'] = _parse_name_group(
         patent_soup.find('primary-examiner'))['name']
     parsed['abstract'] = safe_text(patent_soup.find('abstract'))
@@ -107,7 +107,7 @@ def _parse_claims(soup):
     return claims
 
 
-def _parse_inventors(soup):
+def _parse_inventors(soup, version):
     """ Parse inventors.
 
     Parameters
@@ -121,7 +121,19 @@ def _parse_inventors(soup):
     -------
     list[Inventor]
     """
-    inventor_tags = soup.find('inventors').find_all('inventor')
+    if soup['country'] == 'US':
+        if version < 'v4.3':
+            list_name = 'applicants'
+            tag_name = 'applicant'
+        else:
+            list_name = 'us-applicants'
+            tag_name = 'us-applicant'
+        applicant_list = soup.find(list_name)
+        inventor_tags = [tag for tag in applicant_list.find_all(tag_name)
+                         if tag['app-type'] == 'applicant-inventor']
+    else:
+        inventor_list_tag = soup.find('inventors')
+        inventor_tags = inventor_list_tag.find_all('inventor')
 
     inventors = list()
     for tag in inventor_tags:

@@ -103,21 +103,28 @@ def get_patents_from_zip(zip_file):
     patents = list()
     n_failures = 0
     for name, file in unzipped.items():
+        name_match = re.search(r'.*((?:pg|pftaps|ipg)\d+.*)', name)
+        if name_match is None:
+            continue
+
+        cleaned_name = name_match.groups()[0]
         if isinstance(file, bytes):
             file = file.decode()
 
-        if name.startswith('pftaps'):
+        if cleaned_name.startswith('pftaps'):
             splitter = parse.aps.chunk_aps_file
             parser = parse.aps.parse_aps_chunk
-        elif name.startswith('pg'):
-            splitter = parse.sgml.chunk_sgml_file
-            parser = parse.sgml.parse_sgml_chunk
-        elif name.startswith('ipg'):
-            splitter = parse.xml.chunk_xml_file
-            parser = parse.xml.parse_xml_chunk
         else:
-            logging.info('Ignoring: {}'.format(name))
-            continue
+            is_v4 = re.search(r'us-patent-grant-v4\d', file[:200]) is not None
+            if cleaned_name.startswith('pg') and not is_v4:
+                splitter = parse.sgml.chunk_sgml_file
+                parser = parse.sgml.parse_sgml_chunk
+            elif cleaned_name.startswith('ipg') or is_v4:
+                splitter = parse.xml.chunk_xml_file
+                parser = parse.xml.parse_xml_chunk
+            else:
+                logging.info('Ignoring: {}'.format(name))
+                continue
 
         for chunk in splitter(file):
             try:
