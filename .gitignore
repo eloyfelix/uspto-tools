@@ -99,3 +99,5 @@ ENV/
 
 /scratch/
 /bad_scripts/
+/MANIFEST
+/.gitignore

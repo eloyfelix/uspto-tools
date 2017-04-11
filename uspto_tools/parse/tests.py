@@ -1,6 +1,6 @@
 import unittest
 
-from uspto_tools.tests import GOOD_PAIR
+from uspto_tools.fetch.tests import GOOD_PAIR
 
 from uspto_tools.fetch import patft
 from uspto_tools.parse import patft_html
