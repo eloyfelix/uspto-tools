@@ -67,6 +67,9 @@ def parse_xml_chunk(chunk):
         raise ValueError('no patent in chunk.')
 
     version = patent_soup['dtd-version'].split()[0]
+    # Version 4.5 is written "v4.5", while the others for instance "v43".
+    version = version.replace('.', '')
+
     parsed = dict()
     parsed.update(_parse_pub_ref(patent_soup))
     parsed.update(_parse_app_ref(patent_soup))
