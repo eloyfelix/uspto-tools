@@ -195,11 +195,27 @@ def _get_patent_info(patent):
     series_code = patent['SERIES CODE']
     date = patent['APPLICATION DATE']
     if date != 'None':
-        date = datetime.datetime.strptime(date, '%Y%m%d').toordinal()
+        date = _safe_date(date).toordinal()
     else:
         date = None
 
     return field_type, p_num, app_num, series_code, date
+
+
+def _safe_date(date_str):
+    try:
+        date = datetime.datetime.strptime(date_str, '%Y%m%d')
+    except ValueError as e:
+        if str(e) == 'day is out of range for month':
+            # Some dates has been wrongly entered into the original database
+            # meaning that some dates does not exist. If non-existing day,
+            # decrement day until exists.
+            new_date = '{}{:02d}'.format(date_str[:-2], int(date_str[-2:]) - 1)
+            return _safe_date(new_date)
+        else:
+            raise e
+
+    return date
 
 
 def _parse_patent_number(raw_p_num):
@@ -224,6 +240,9 @@ def _make_parser():
     parser.add_argument('-o', '--output',
                         help='Output path (default {})'.format(default_output),
                         default=default_output)
+    parser.add_argument('--skip', help=('File containing names of files in '
+                                        'archives to skip separated '
+                                        'by new-lines.'))
     parser.add_argument('-l', '--log', default=None,
                         help='Log file (default stdout)')
 
@@ -246,10 +265,19 @@ if __name__ == '__main__':
     conn, cur = connect_and_init_db(args.output)
     patent_count = 0
 
+    if args.skip:
+        with open(args.skip) as f:
+            to_skip = set(line.strip() for line in f.readlines())
+    else:
+        to_skip = set()
+
     start = datetime.datetime.now()
     logging.info('Opens archive')
     with zipfile.ZipFile(args.archive, allowZip64=True) as z:
         for name in z.namelist():
+            if name in to_skip:
+                logging.info('Skips: {}'.format(name))
+                continue
             logging.info('Reads: {}'.format(name))
             with z.open(name) as file:
                 patents_raw = load_patents(file)
