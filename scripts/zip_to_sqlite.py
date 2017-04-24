@@ -139,8 +139,12 @@ def insert_patents(patents, cursor):
     values = list()
     fulltexts = list()
     references = list()
-    for patent in patents:
-        field_type, p_num, app_num, series_code, date = _get_patent_info(patent)
+    for i, patent in enumerate(patents):
+        try:
+            field_type, p_num, app_num, series_code, date = _get_patent_info(patent)
+        except Exception:
+            logging.exception('Failed parse. Skips patent {}.'.format(i))
+            continue
 
         values.append((
             p_num,
@@ -195,14 +199,18 @@ def _get_patent_info(patent):
     series_code = patent['SERIES CODE']
     date = patent['APPLICATION DATE']
     if date != 'None':
-        date = _safe_date(date).toordinal()
+        try:
+            date = _safe_date(date, raw_p_num)
+        except ValueError:
+            logging.warning('Failed to parse date of patent: {}'.format(raw_p_num))
+            date = None
     else:
         date = None
 
     return field_type, p_num, app_num, series_code, date
 
 
-def _safe_date(date_str):
+def _safe_date(date_str, pnum):
     try:
         date = datetime.datetime.strptime(date_str, '%Y%m%d')
     except ValueError as e:
@@ -211,11 +219,18 @@ def _safe_date(date_str):
             # meaning that some dates does not exist. If non-existing day,
             # decrement day until exists.
             new_date = '{}{:02d}'.format(date_str[:-2], int(date_str[-2:]) - 1)
-            return _safe_date(new_date)
+            logging.warning('Day out of range, decrements date (Pnum {})'.format(pnum))
+            return _safe_date(new_date, pnum)
         else:
-            raise e
+            if date_str.endswith('00'):
+                # Some days are entered as double zero, set date to first of
+                # month instead.
+                logging.warning('Day 00, set day to 01 (Pnum {})'.format(pnum))
+                return _safe_date(date_str[:-2] + '01', pnum)
+            else:
+                raise e
 
-    return date
+    return date.toordinal()
 
 
 def _parse_patent_number(raw_p_num):
