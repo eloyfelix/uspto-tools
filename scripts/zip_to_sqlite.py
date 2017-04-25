@@ -9,6 +9,7 @@ import re
 import os
 import itertools
 import datetime
+import numpy as np
 
 
 with open(os.path.join(os.path.dirname(__file__), 'create_db.sql')) as f:
@@ -146,10 +147,20 @@ def insert_patents(patents, cursor):
             logging.exception('Failed parse. Skips patent {}.'.format(i))
             continue
 
+        try:
+            # Very rarely, application numbers can pop as as HUGE
+            # numbers. Max size of sqlite INTEGER is 64 bits, if application
+            # number doesn't fit let it be None.
+            app_num = int(np.int64(app_num))
+        except OverflowError:
+            logging.warning(('Overflowing application number '
+                             'of patent {}. Set to null.').format(p_num))
+            app_num = None
+
         values.append((
             p_num,
             field_type,
-            int(app_num),
+            app_num,
             series_code if series_code != 'None' else None,
             date,
             patent['TITLE']
