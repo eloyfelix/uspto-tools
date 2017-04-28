@@ -10,6 +10,7 @@ import os
 import itertools
 import datetime
 import numpy as np
+import hashlib
 
 
 with open(os.path.join(os.path.dirname(__file__), 'create_db.sql')) as f:
@@ -20,7 +21,6 @@ INSERT_PATENT = "insert or replace into patentdata values (?, ?, ?, ?, ?, ?)"
 INSERT_IGNORE_PNUM = "insert or ignore into patents (PNum) values (?)"
 
 INSERT_FULLTEXT = """ insert into fulltexts values (
-    NULL,
     ?,
     (select Id from texttypes where Name=?),
     ?
@@ -127,7 +127,7 @@ def parse_patent(patent_str):
     return parsed
 
 
-def insert_patents(patents, cursor):
+def insert_patents(patents, cursor, root_dir=None):
     """ Insert parsed patents into database.
 
     Parameters
@@ -170,12 +170,32 @@ def insert_patents(patents, cursor):
 
     cursor.executemany(INSERT_IGNORE_PNUM, [(v[0], ) for v in values])
     cursor.executemany(INSERT_PATENT, values)
-    cursor.executemany(INSERT_FULLTEXT, fulltexts)
+
+    save_fulltexts(cursor, fulltexts, root_dir)
 
     referred = set((ref, ) for p, ref in references)
     cursor.executemany(INSERT_IGNORE_PNUM, referred)
     cursor.executemany(INSERT_CITATION, references)
 
+
+def save_fulltexts(cursor, fulltexts, root_dir=None):
+    to_db = list()
+    for pnum, key, body in fulltexts:
+        md5 = hashlib.md5(str(pnum).encode('ascii')).hexdigest()
+        top_dir = int(md5[:16], 16) % 100
+        bottom_dir = int(md5[16:], 16) % 100
+        path = '{}/{}/{}/{}.txt'.format(key, top_dir, bottom_dir, pnum)
+        if root_dir is not None:
+            path = '{}/{}'.format(root_dir, path)
+
+        os_path = os.path.join(*path.split('/'))
+        os.makedirs(os.path.dirname(os_path), exist_ok=True)
+        with open(os_path, 'w') as f:
+            f.write(body)
+
+        to_db.append((pnum, key, path))
+
+    cursor.executemany(INSERT_FULLTEXT, to_db)
 
 def _get_references(patent, patent_number):
     references = list()
@@ -266,6 +286,11 @@ def _make_parser():
     parser.add_argument('-o', '--output',
                         help='Output path (default {})'.format(default_output),
                         default=default_output)
+
+    default_text_loc = 'fulltexts'
+    parser.add_argument('--text_location', help=('Root directory to store '
+                                                 'fulltexts (default {}.').format(default_text_loc),
+                        default=default_text_loc)
     parser.add_argument('--skip', help=('File containing names of files in '
                                         'archives to skip separated '
                                         'by new-lines.'))
@@ -312,7 +337,7 @@ if __name__ == '__main__':
             patents = [parse_patent(p_str) for p_str in patents_raw]
 
             logging.info('Insert into database.')
-            insert_patents(patents, cur)
+            insert_patents(patents, cur, args.text_location)
 
             logging.info('Commits changes.')
             conn.commit()

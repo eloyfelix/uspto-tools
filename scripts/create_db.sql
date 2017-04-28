@@ -14,14 +14,13 @@ create table if not exists patentdata(
 
 create table if not exists texttypes (
     Id integer primary key autoincrement,
-    Name varchar(20) not NULL
+    Name varchar(20) not NULL unique
 );
 
 create table if not exists fulltexts (
-    Id integer primary key autoincrement,
     PatentId integer not NULL,
     TextType integer not NULL,
-    Body text not NULL,
+    Path varchar(200) not NULL,
     foreign key(PatentId) references patents(PNum),
     foreign key (TextType) references texttypes(Id)
 );
@@ -34,8 +33,9 @@ create table if not exists citations (
 );
 
 create index if not exists date_index on patentdata (AppDate);
+create index if not exists fulltext_pnum_index on fulltexts (PatentId);
 
-insert into texttypes values (NULL, 'ABSTRACT');
-insert into texttypes values (NULL, 'BRIEF SUMMARY');
-insert into texttypes values (NULL, 'DESCRIPTION');
-insert into texttypes values (NULL, 'CLAIMS');
+insert or ignore into texttypes values (NULL, 'ABSTRACT');
+insert or ignore into texttypes values (NULL, 'BRIEF SUMMARY');
+insert or ignore into texttypes values (NULL, 'DESCRIPTION');
+insert or ignore into texttypes values (NULL, 'CLAIMS');
