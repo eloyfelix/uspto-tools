@@ -68,7 +68,7 @@ class NameSpace:
                                                repr(self.data))
 
 
-def parse_aps_into_namespaces(text):
+def parse_aps_into_namespaces(lines):
     """ Parse APS-text into list of `NameSpace`-instances.
 
     Parameters
@@ -81,16 +81,17 @@ def parse_aps_into_namespaces(text):
     list[NameSpace]
         Parsed
     """
-    lines = text.splitlines()
     name_spaces = list()
 
     current_namespace = None
     previous_tag = None
     for line in lines:
+        # pftaps19800101_wk01.txt line 95551
+        if line.startswith("INVT"):
+            line = "INVT"
         if len(line) == 4:
             current_namespace = NameSpace(line)
             name_spaces.append(current_namespace)
-
         else:
             tag = line[:3]
             data = line[5:]
@@ -107,7 +108,7 @@ def parse_aps_into_namespaces(text):
     return name_spaces
 
 
-def chunk_aps_file(aps, chunk_on='PATN'):
+def chunk_aps_file(aps):
     """ Iterate over patents in APS-file.
 
     Parameters
@@ -125,27 +126,23 @@ def chunk_aps_file(aps, chunk_on='PATN'):
     if isinstance(aps, str):
         try:
             with open(aps) as f:
-                all_contents = f.read()
+                all_contents = f.readlines()
         except IOError:  # Assume APS-contents.
             all_contents = aps
     elif hasattr(aps, 'read'):  # File-like.
-        all_contents = aps.read()
+        all_contents = aps.readlines()
     else:
         raise ValueError('invalid aps')
 
-    # Skip header line
-    contents = all_contents.split('\n', 1)[1]
-    last_pos = contents.index(chunk_on)
-
-    while True:
-        try:
-            loc = contents.index(chunk_on, last_pos + 1)
-        except ValueError:
-            yield contents[last_pos:]
-            break
-        else:
-            yield contents[last_pos: loc]
-            last_pos = loc
+    # trailing spaces in files like pftaps19780627_wk26.txt
+    all_contents = map(str.rstrip, all_contents[1:])
+    # empty lines in patents like 044883030 in pftaps19841211_wk50.txt
+    all_contents = list(filter(len, all_contents))
+    # "PATN" appears in some patens as text
+    indices = [i for i, j in enumerate(all_contents) if j == "PATN"]
+    patents = (all_contents[i:j] for i,j in zip(indices, indices[1:]+[None]))
+    for patent in patents:
+        yield patent
 
 
 def parse_aps_chunk(chunk):

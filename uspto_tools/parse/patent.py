@@ -8,7 +8,7 @@ class USPatent:
 
     """ A single patent instance. """
 
-    def __init__(self, clean_id=True, **kwargs):
+    def __init__(self, **kwargs):
         self._patent_number = None
         self.date = None
         self.country = None
@@ -37,8 +37,6 @@ class USPatent:
 
         self.patent_classification = None
 
-        self.clean_id = clean_id
-
         _set_attributes_from_kwargs(self, kwargs)
 
     @property
@@ -47,8 +45,6 @@ class USPatent:
 
     @patent_number.setter
     def patent_number(self, patent_number):
-        if self.clean_id:
-            patent_number = re.sub(r'[^a-zA-Z\d]', '', patent_number)
         self._patent_number = patent_number
 
     @property
